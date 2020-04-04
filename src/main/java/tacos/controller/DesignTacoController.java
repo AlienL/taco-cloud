@@ -1,18 +1,20 @@
 package tacos.controller;
 
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.validation.Errors;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.*;
 
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
+import java.util.stream.StreamSupport;
 
+import tacos.dao.IngredientRepository;
+import tacos.dao.TacoRepository;
 import tacos.domain.Ingredient;
-import tacos.domain.Ingredient.Type;
+import tacos.domain.Order;
 import tacos.domain.Taco;
 
 import javax.validation.Valid;
@@ -20,32 +22,41 @@ import javax.validation.Valid;
 @Slf4j
 @Controller
 @RequestMapping("/design")
+@SessionAttributes("order")
+@RequiredArgsConstructor(onConstructor = @__(@Autowired))
 public class DesignTacoController {
+
+    private final IngredientRepository ingredientRepo;
+    private final TacoRepository tacoRepo;
+
+    @ModelAttribute(name = "taco")
+    public Taco taco() {
+        return new Taco();
+    }
+
+    @ModelAttribute(name = "order")
+    public Order order() {
+        return new Order();
+    }
 
     @GetMapping
     public String showDesignForm(final Model model) {
-        Stream.of(
-                new Ingredient("FLTO", "Flour Tortilla", Type.WRAP), new Ingredient("COTO", "Corn Tortilla", Type.WRAP),
-                new Ingredient("GRBF", "Ground Beef", Type.PROTEIN), new Ingredient("CARN", "Carnitas", Type.PROTEIN),
-                new Ingredient("TMTO", "Diced Tomatoes", Type.VEGGIES), new Ingredient("LETC", "Lettuce", Type.VEGGIES),
-                new Ingredient("CHED", "Cheddar", Type.CHEESE), new Ingredient("JACK", "Monterrey Jack", Type.CHEESE),
-                new Ingredient("SLSA", "Salsa", Type.SAUCE), new Ingredient("SRCR", "Sour Cream", Type.SAUCE)
-                ).collect(Collectors.groupingBy(Ingredient::getType))
-                 .forEach((key, value) -> model.addAttribute(key.toString().toLowerCase(), value));
-
-        model.addAttribute("taco", new Taco());
-
+        StreamSupport.stream(this.ingredientRepo.findAll().spliterator(), false)
+                     .collect(Collectors.groupingBy(Ingredient::getType))
+                     .forEach((key, value) -> model.addAttribute(key.toString().toLowerCase(), value));
         return "design";
     }
 
     @PostMapping
-    public String processDesign(@Valid final Taco taco, final Errors errors) {
+    public String processDesign(@Valid final Taco taco, final Errors errors, @ModelAttribute final Order order) {
         if (errors.hasErrors()) {
             return "redirect:/design";
         }
-        // Save the taco design...
-        // We'll do this in chapter 3
+
         log.info("Processing designed taco: " + taco);
+        final Taco saved = this.tacoRepo.save(taco);
+        order.addTaco(saved);
+
         return "redirect:/orders/current";
     }
 }
