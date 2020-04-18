@@ -3,6 +3,7 @@ package tacos.controller;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.validation.Errors;
@@ -13,6 +14,7 @@ import org.springframework.web.bind.annotation.SessionAttributes;
 import org.springframework.web.bind.support.SessionStatus;
 import tacos.dao.OrderRepository;
 import tacos.domain.Order;
+import tacos.domain.User;
 
 import javax.validation.Valid;
 
@@ -31,10 +33,14 @@ public class OrderController {
     }
 
     @PostMapping
-    public String processOrder(@Valid final Order order, final Errors errors, final SessionStatus sessionStatus) {
+    public String processOrder(@Valid final Order order, final Errors errors, final SessionStatus sessionStatus,
+                               @AuthenticationPrincipal final User user) {
         if (errors.hasErrors()) {
             return "orderForm";
         }
+
+        order.setUser(user);
+
         log.info("Order submitted: " + order);
         this.orderRepo.save(order);
         sessionStatus.setComplete();
